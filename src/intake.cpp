@@ -1,5 +1,6 @@
 #include "main.h" // IWYU pragma: keep
 #include "intake.hpp"
+
 // Intake Motors/Sensors
 pros::Motor bottomIntake(19, pros::MotorGears::blue);    // Port 19, 11W Blue Motor
 pros::Motor middleIntake(-20, pros::MotorGears::green);  // Port 20 (reversed), 5.5W Green Motor
@@ -18,6 +19,8 @@ pros::Controller master(pros::E_CONTROLLER_MASTER);
 bool floatingPistonToggle = false;  // Tracks floating piston state
 bool hoodPistonToggle = false;      // Tracks hood piston state
 int outtakeLongMode = 0;            // 0=forward only, 1=reverse red blocks, 2=reverse blue blocks
+// Token to coordinate/interrupt one-shot intake tasks (increment to cancel)
+volatile int intakeOneShotToken = 0;
 
 // Pneumatic control functions
 void setFloatingPiston(bool extended) {
@@ -30,14 +33,37 @@ void setHoodPiston(bool extended) {
     hoodPiston.set_value(extended);
 }
 
-// Intake operation functions
-void intakeStore(int voltage) {
-    // Retract both pistons and run all intake motors forward
+// Variant that will stop the indexer motor once its actual velocity falls below threshold
+void intakeStore(int voltage, bool stopIndexerWhenSlow) {
+    const double INDEXER_VEL_THRESHOLD = 100.0; // units from get_actual_velocity()
+    static bool indexerStopped = false;
+
     setFloatingPiston(false);
     setHoodPiston(false);
+
+    // always run bottom and middle
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
+
+    if (!stopIndexerWhenSlow) {
+        // reset state and run indexer normally
+        indexerStopped = false;
+        indexer.move(voltage);
+        return;
+    }
+
+    if (!indexerStopped) {
+    // while not yet stopped, run indexer and check velocity
     indexer.move(voltage);
+    double vel = indexer.get_actual_velocity();
+    if (vel < INDEXER_VEL_THRESHOLD && vel > -INDEXER_VEL_THRESHOLD) {
+        indexerStopped = true;
+        indexer.move(0);
+    }
+} else {
+        // already stopped
+        indexer.move(0);
+    }
 }
 
 // Hue-based outtakeLong: checks intakeOptical to decide reverse logic
@@ -102,53 +128,18 @@ void outtakeLong(bool held, int voltage) {
     tick++;
 }
 
+// Parameter struct and task functions for preemptible one-shot intake tasks
+struct OneShotParams { int token; int voltage; };
+
+static void outtakeLongTask(void* arg);
+static void outtakeUpperMidTask(void* arg);
+static void intakeStoreOnceTask(void* arg);
+
 // One-shot overload: spawn background task for hue-based color sorting
 void outtakeLong(int voltage) {
-    static volatile bool taskRunning = false;
-    static int taskVoltage = 0;
-
-    if (taskRunning) return;
-    taskVoltage = voltage;
-
-    auto taskFn = [](void*) {
-        taskRunning = true;
-        setFloatingPiston(false);
-        setHoodPiston(true);
-
-        int hue = intakeOptical.get_hue();
-        bool isRed = (hue < 15 || hue > 345);
-        bool isBlue = (hue > 200 && hue < 250);
-
-        // Determine if we should use color sorting based on mode
-        bool shouldSort = false;
-        if (outtakeLongMode == 1 && isRed) {
-            shouldSort = true;
-        } else if (outtakeLongMode == 2 && isBlue) {
-            shouldSort = true;
-        }
-
-        if (shouldSort) {
-            // Phase 1: reverse all motors for 120ms
-            bottomIntake.move(-taskVoltage);
-            middleIntake.move(-taskVoltage);
-            indexer.move(-taskVoltage);
-            pros::delay(120);
-
-            // Phase 2: bottom/middle forward, indexer reverse for 250ms
-            bottomIntake.move(taskVoltage);
-            middleIntake.move(taskVoltage);
-            indexer.move(-taskVoltage);
-            pros::delay(250);
-        }
-
-        // Phase 3: all forward
-        bottomIntake.move(taskVoltage);
-        middleIntake.move(taskVoltage);
-        indexer.move(taskVoltage);
-        taskRunning = false;
-    };
-
-    new pros::Task(taskFn, nullptr, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "outtakeLong_one_shot");
+    // start one-shot that can be preempted by incrementing intakeOneShotToken
+    OneShotParams* p = new OneShotParams{++intakeOneShotToken, voltage};
+    new pros::Task(outtakeLongTask, p, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "outtakeLong_one_shot");
 }
 
 // Performs a reverse pulse followed by forward motion while held
@@ -186,31 +177,9 @@ void outtakeUpperMid(bool held, int voltage) {
 
 // Non-blocking one-shot outtake: reverse for 120ms then forward
 void outtakeUpperMid(int voltage) {
-    static volatile bool taskRunning = false;
-    static int taskVoltage = 0;
-
-    if (taskRunning) return; // Prevent overlapping calls
-    
-    taskVoltage = voltage;
-    auto taskFn = [](void*) {
-        taskRunning = true;
-        setFloatingPiston(false);
-        setHoodPiston(false);
-        
-        // Reverse phase
-        bottomIntake.move(-taskVoltage);
-        middleIntake.move(-taskVoltage);
-        indexer.move(-taskVoltage);
-        pros::delay(120);
-        
-        // Forward phase
-        bottomIntake.move(taskVoltage);
-        middleIntake.move(taskVoltage);
-        indexer.move(-taskVoltage);
-        
-        taskRunning = false;
-    };
-    new pros::Task(taskFn, nullptr, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "outtakeUpperMid_one_shot");
+    // Use parameterized task to avoid lambda capture issues
+    OneShotParams* p = new OneShotParams{++intakeOneShotToken, voltage};
+    new pros::Task(outtakeUpperMidTask, p, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "outtakeUpperMid_one_shot");
 }
 
 void outtakeLowerMid(int voltage) {
@@ -286,7 +255,7 @@ void intakeControl() {
             outtakeLong(false, 0); // reset outtakeLong state
             
             if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-                intakeStore(127);
+                intakeStore(127, true);
             } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
                 outtakeLowerMid(127);
             } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_X)) {
@@ -298,4 +267,127 @@ void intakeControl() {
             }
         }
     }
+}
+
+// Non-blocking one-shot: run intake motors and stop indexer once its velocity drops
+void intakeStoreOnce(int voltage) {
+    OneShotParams* p = new OneShotParams{++intakeOneShotToken, voltage};
+    new pros::Task(intakeStoreOnceTask, p, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "intakeStoreOnce");
+}
+
+// Task function implementations for preemptible one-shot behaviors
+static void outtakeLongTask(void* arg) {
+    OneShotParams* p = static_cast<OneShotParams*>(arg);
+    if (!p) return;
+    int localToken = p->token;
+    int taskVoltage = p->voltage;
+    delete p;
+
+    const int REVERSE_TICKS = 12;    // ~120ms
+    const int MID_PHASE_TICKS = 37;  // ~370ms total
+
+    setFloatingPiston(false);
+    setHoodPiston(true);
+
+    int hue = intakeOptical.get_hue();
+    bool isRed = (hue < 15 || hue > 345);
+    bool isBlue = (hue > 200 && hue < 250);
+
+    bool shouldSort = false;
+    if (outtakeLongMode == 1 && isRed) shouldSort = true;
+    if (outtakeLongMode == 2 && isBlue) shouldSort = true;
+
+    if (!shouldSort || outtakeLongMode == 0) {
+        bottomIntake.move(taskVoltage);
+        middleIntake.move(taskVoltage);
+        indexer.move(taskVoltage);
+        return;
+    }
+
+    // Phase 0: reverse
+    bottomIntake.move(-taskVoltage);
+    middleIntake.move(-taskVoltage);
+    indexer.move(-taskVoltage);
+    for (int t = 0; t < REVERSE_TICKS; ++t) {
+        if (intakeOneShotToken != localToken) {
+            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
+            return;
+        }
+        pros::delay(10);
+    }
+
+    // Phase 1: mid phase
+    bottomIntake.move(taskVoltage);
+    middleIntake.move(taskVoltage);
+    indexer.move(-taskVoltage);
+    for (int t = REVERSE_TICKS; t < MID_PHASE_TICKS; ++t) {
+        if (intakeOneShotToken != localToken) {
+            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
+            return;
+        }
+        pros::delay(10);
+    }
+
+    // Phase 2: forward
+    bottomIntake.move(taskVoltage);
+    middleIntake.move(taskVoltage);
+    indexer.move(taskVoltage);
+}
+
+static void outtakeUpperMidTask(void* arg) {
+    OneShotParams* p = static_cast<OneShotParams*>(arg);
+    if (!p) return;
+    int localToken = p->token;
+    int taskVoltage = p->voltage;
+    delete p;
+
+    setFloatingPiston(false);
+    setHoodPiston(false);
+
+    // Reverse phase
+    bottomIntake.move(-taskVoltage);
+    middleIntake.move(-taskVoltage);
+    indexer.move(-taskVoltage);
+    for (int t = 0; t < 12; ++t) {
+        if (intakeOneShotToken != localToken) {
+            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
+            return;
+        }
+        pros::delay(10);
+    }
+
+    // Forward phase
+    bottomIntake.move(taskVoltage);
+    middleIntake.move(taskVoltage);
+    indexer.move(-taskVoltage);
+}
+
+static void intakeStoreOnceTask(void* arg) {
+    OneShotParams* p = static_cast<OneShotParams*>(arg);
+    if (!p) return;
+    int localToken = p->token;
+    int taskVoltage = p->voltage;
+    delete p;
+
+    const double INDEXER_VEL_THRESHOLD = 100.0;
+
+    setFloatingPiston(false);
+    setHoodPiston(false);
+
+    bottomIntake.move(taskVoltage);
+    middleIntake.move(taskVoltage);
+    indexer.move(taskVoltage);
+
+    while (true) {
+        if (intakeOneShotToken != localToken) {
+            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
+            return;
+        }
+        double vel = indexer.get_actual_velocity();
+        if (vel < INDEXER_VEL_THRESHOLD && vel > -INDEXER_VEL_THRESHOLD) break;
+        pros::delay(10);
+    }
+
+    indexer.move(0);
+    // leave bottom/middle running
 }

@@ -26,6 +26,8 @@ void setHoodPiston(bool extended);
 
 // Intake functions
 void intakeStore(int voltage);
+void intakeStore(int voltage, bool stopIndexerWhenSlow); // if true, stop indexer when its actual velocity < 100
+void intakeStoreOnce(int voltage); // non-blocking one-shot: runs intake and stops indexer when slow
 void intakeStop();
 
 // Outtake functions
