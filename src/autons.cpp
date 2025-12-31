@@ -11,5 +11,10 @@ extern pros::MotorGroup left_motor_group;
 extern pros::MotorGroup right_motor_group;
 
 void testAuton() {
-
+    outtakeLongMode = 1;
+    intakeStoreOnce(127);
+    pros::delay(6000);
+    intakeStop();
+    pros::delay(3000);
+    outtakeLong(127);
 }

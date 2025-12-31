@@ -3,6 +3,7 @@
 #include "intake.hpp"
 #include "littleWill.hpp"
 #include "descore.hpp"
+#include "autons.hpp"
 
 //left motor group
 pros::MotorGroup left_motor_group ({-1, -12, -11}, pros::MotorGears::blue);
@@ -12,7 +13,7 @@ pros::MotorGroup right_motor_group ({13, 15, 14}, pros::MotorGears::blue);
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&left_motor_group, // left motor group
                               &right_motor_group, // right motor group
-                              12.2, // 12.3 inch track width
+                              12, // 12.3 inch track width
                               lemlib::Omniwheel::NEW_325, // using new 3.25" omnis
                               450, // drivetrain rpm is 450
                               2 // horizontal drift is 2
@@ -77,7 +78,7 @@ lemlib::Chassis chassis(drivetrain, // drivetrain settings
 int autonSelection = 0;
 bool autonStarted = false;
 
-pros::adi::DigitalIn bumper('H');
+pros::adi::DigitalIn bumper('C');
 
 void centerButton() {
 	static bool pressed = false; // flag to check if right button was pressed
@@ -98,8 +99,7 @@ void initialize() {
 	bottomIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	middleIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	indexer.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
-	intakeOptical.set_led_pwm(100); // set optical LED to full brightness
-	intakeOptical.set_integration_time(10); // set optical integration time to 10ms
+	intakeOptical.set_led_pwm(100); // set optical sensor LED to max brightness
 	pros::lcd::register_btn0_cb(centerButton);
 }
 
@@ -150,7 +150,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		
+		testAuton();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {

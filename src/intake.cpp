@@ -5,12 +5,13 @@
 pros::Motor bottomIntake(19, pros::MotorGears::blue);    // Port 19, 11W Blue Motor
 pros::Motor middleIntake(-20, pros::MotorGears::green);  // Port 20 (reversed), 5.5W Green Motor
 pros::Motor indexer(17, pros::MotorGears::green);        // Port 17, 5.5W Green Motor
-pros::Optical intakeOptical(3);    // Port 3
-pros::Distance intakeDistance(4);  // Port 4
+pros::Optical intakeOptical(7);    // Port 4
+pros::Distance intakeDistance(3);  // Port 3
 
 // Pneumatics used in intake system
-pros::adi::DigitalOut floatingPiston('A', false);  // Pneumatic piston on ADI port A
-pros::adi::DigitalOut hoodPiston('B', false);      // Pneumatic piston on ADI port B
+pros::adi::DigitalOut floatingPiston('F', false);  // Pneumatic piston on ADI port A
+pros::adi::DigitalOut hoodPiston('H', false);      // Pneumatic piston on ADI port B
+pros::adi::DigitalOut doubleParkPiston('B', false); // Pneumatic piston on ADI port F
 
 // Controller used during user control
 pros::Controller master(pros::E_CONTROLLER_MASTER);
@@ -35,8 +36,10 @@ void setHoodPiston(bool extended) {
 
 // Variant that will stop the indexer motor once its actual velocity falls below threshold
 void intakeStore(int voltage, bool stopIndexerWhenSlow) {
-    const double INDEXER_VEL_THRESHOLD = 100.0; // units from get_actual_velocity()
+    const double INDEXER_VEL_THRESHOLD = 150; // units from get_actual_velocity()
+    const int STARTUP_TICKS = 10; // Wait 10 ticks (~100ms) before checking velocity
     static bool indexerStopped = false;
+    static int tickCounter = 0;
 
     setFloatingPiston(false);
     setHoodPiston(false);
@@ -48,19 +51,25 @@ void intakeStore(int voltage, bool stopIndexerWhenSlow) {
     if (!stopIndexerWhenSlow) {
         // reset state and run indexer normally
         indexerStopped = false;
-        indexer.move(voltage);
+        tickCounter = 0;
+        indexer.move_velocity(200);
         return;
     }
 
     if (!indexerStopped) {
-    // while not yet stopped, run indexer and check velocity
-    indexer.move(voltage);
-    double vel = indexer.get_actual_velocity();
-    if (vel < INDEXER_VEL_THRESHOLD && vel > -INDEXER_VEL_THRESHOLD) {
-        indexerStopped = true;
-        indexer.move(0);
-    }
-} else {
+        // while not yet stopped, run indexer and check velocity
+        indexer.move_velocity(200);
+        tickCounter++;
+        
+        // Only check velocity after startup period
+        if (tickCounter > STARTUP_TICKS) {
+            double vel = indexer.get_actual_velocity();
+            if (vel < INDEXER_VEL_THRESHOLD) {
+                indexerStopped = true;
+                indexer.move(0);
+            }
+        }
+    } else {
         // already stopped
         indexer.move(0);
     }
@@ -70,8 +79,8 @@ void intakeStore(int voltage, bool stopIndexerWhenSlow) {
 // Red objects (hue ~0-15 or ~345-360) reverse for 250ms, then forward
 // Blue objects (hue ~200-250) go forward only
 void outtakeLong(bool held, int voltage) {
-    const int REVERSE_TICKS = 12;      // ~120ms at ~10ms loop
-    const int MID_PHASE_TICKS = 37;   // ~370ms total (12 + 25 ticks)
+    const int REVERSE_TICKS = 145;      // ~120ms at ~10ms loop 130
+   // const int MID_PHASE_TICKS = 37;   // ~370ms total (12 + 25 ticks)
     static int tick = 0;
     static int phase = 0; // 0=reverse, 1=mid phase, 2=forward
 
@@ -87,7 +96,7 @@ void outtakeLong(bool held, int voltage) {
     // Read current hue
     int hue = intakeOptical.get_hue();
     bool isRed = (hue < 15 || hue > 345);
-    bool isBlue = (hue > 200 && hue < 250);
+    bool isBlue = (hue > 190 && hue < 260);
 
     // Determine if we should use color sorting based on mode
     bool shouldSort = false;
@@ -107,15 +116,15 @@ void outtakeLong(bool held, int voltage) {
         if (tick < REVERSE_TICKS) {
             // Phase 0: reverse all motors for 120ms
             phase = 0;
-            bottomIntake.move(-voltage);
-            middleIntake.move(-voltage);
-            indexer.move(-voltage);
-        } else if (tick < MID_PHASE_TICKS) {
+            bottomIntake.move(voltage);
+            middleIntake.move(voltage);
+            indexer.move_velocity(-160);//150
+        /*} else if (tick < MID_PHASE_TICKS) {
             // Phase 1: bottom/middle forward, indexer reverse for 250ms
             phase = 1;
             bottomIntake.move(voltage);
             middleIntake.move(voltage);
-            indexer.move(-voltage);
+            indexer.move(-voltage);*/
         } else {
             // Phase 2: all forward
             phase = 2;
@@ -197,7 +206,7 @@ void outtakeDoublePark() {
     
     // Keep spinning reverse until distance < 8
     while (intakeDistance.get_distance() >= 8) {
-        bottomIntake.move(-90);
+        bottomIntake.move_velocity(-200);
         middleIntake.move(-127);
         indexer.move(-127);
     }
@@ -254,6 +263,11 @@ void intakeControl() {
         } else {
             outtakeLong(false, 0); // reset outtakeLong state
             
+            // Reset intakeStore state on new R1 press
+            if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+                intakeStore(0, false);
+            }
+            
             if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
                 intakeStore(127, true);
             } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
@@ -283,55 +297,55 @@ static void outtakeLongTask(void* arg) {
     int taskVoltage = p->voltage;
     delete p;
 
-    const int REVERSE_TICKS = 12;    // ~120ms
-    const int MID_PHASE_TICKS = 37;  // ~370ms total
+    const int REVERSE_TICKS = 20;    // ~150ms reverse
 
     setFloatingPiston(false);
     setHoodPiston(true);
 
-    int hue = intakeOptical.get_hue();
-    bool isRed = (hue < 15 || hue > 345);
-    bool isBlue = (hue > 200 && hue < 250);
-
-    bool shouldSort = false;
-    if (outtakeLongMode == 1 && isRed) shouldSort = true;
-    if (outtakeLongMode == 2 && isBlue) shouldSort = true;
-
-    if (!shouldSort || outtakeLongMode == 0) {
-        bottomIntake.move(taskVoltage);
-        middleIntake.move(taskVoltage);
-        indexer.move(taskVoltage);
-        return;
-    }
-
-    // Phase 0: reverse
-    bottomIntake.move(-taskVoltage);
-    middleIntake.move(-taskVoltage);
-    indexer.move(-taskVoltage);
-    for (int t = 0; t < REVERSE_TICKS; ++t) {
-        if (intakeOneShotToken != localToken) {
-            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
-            return;
-        }
-        pros::delay(10);
-    }
-
-    // Phase 1: mid phase
-    bottomIntake.move(taskVoltage);
-    middleIntake.move(taskVoltage);
-    indexer.move(-taskVoltage);
-    for (int t = REVERSE_TICKS; t < MID_PHASE_TICKS; ++t) {
-        if (intakeOneShotToken != localToken) {
-            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
-            return;
-        }
-        pros::delay(10);
-    }
-
-    // Phase 2: forward
+    // Start motors forward and continuously check for wrong color
     bottomIntake.move(taskVoltage);
     middleIntake.move(taskVoltage);
     indexer.move(taskVoltage);
+
+    master.print(1, 0, "Sampling M:%d   ", outtakeLongMode);
+
+    // Continuously monitor hue until preempted
+    while (true) {
+        if (intakeOneShotToken != localToken) {
+            bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
+            master.print(1, 0, "PREEMPTED       ");
+            return;
+        }
+        
+        int hue = intakeOptical.get_hue();
+        bool isRed = (hue < 15 || hue > 345);
+        bool isBlue = (hue > 190 && hue < 260);
+        
+        // Check if we detect wrong color and reject it
+        if ((outtakeLongMode == 1 && isRed) || (outtakeLongMode == 2 && isBlue)) {
+            master.print(1, 0, "REJECT H:%d     ", hue);
+            
+            // Reverse indexer to push block back
+            bottomIntake.move(taskVoltage);
+            middleIntake.move(taskVoltage);
+            indexer.move_velocity(-160);
+            
+            for (int t = 0; t < REVERSE_TICKS; ++t) {
+                if (intakeOneShotToken != localToken) {
+                    bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
+                    return;
+                }
+                pros::delay(10);
+            }
+            
+            // Resume forward
+            bottomIntake.move(taskVoltage);
+            middleIntake.move(taskVoltage);
+            indexer.move(taskVoltage);
+        }
+        
+        pros::delay(10);
+    }
 }
 
 static void outtakeUpperMidTask(void* arg) {
@@ -369,7 +383,8 @@ static void intakeStoreOnceTask(void* arg) {
     int taskVoltage = p->voltage;
     delete p;
 
-    const double INDEXER_VEL_THRESHOLD = 100.0;
+    const double INDEXER_VEL_THRESHOLD = 150;
+    const int STARTUP_DELAY_MS = 100; // Wait 100ms for motor to spin up
 
     setFloatingPiston(false);
     setHoodPiston(false);
@@ -378,13 +393,16 @@ static void intakeStoreOnceTask(void* arg) {
     middleIntake.move(taskVoltage);
     indexer.move(taskVoltage);
 
+    // Wait for motor to spin up before checking velocity
+    pros::delay(STARTUP_DELAY_MS);
+
     while (true) {
         if (intakeOneShotToken != localToken) {
             bottomIntake.move(0); middleIntake.move(0); indexer.move(0);
             return;
         }
         double vel = indexer.get_actual_velocity();
-        if (vel < INDEXER_VEL_THRESHOLD && vel > -INDEXER_VEL_THRESHOLD) break;
+        if (vel < INDEXER_VEL_THRESHOLD) break;
         pros::delay(10);
     }
 
