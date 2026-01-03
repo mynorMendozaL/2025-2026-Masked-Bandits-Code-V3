@@ -1,3 +1,3 @@
 #pragma once
 
-void testAuton();
+void right4Block();

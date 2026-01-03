@@ -13,27 +13,30 @@ pros::MotorGroup right_motor_group ({13, 15, 14}, pros::MotorGears::blue);
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&left_motor_group, // left motor group
                               &right_motor_group, // right motor group
-                              12, // 12.3 inch track width
+                              12, // 12 inch track width
                               lemlib::Omniwheel::NEW_325, // using new 3.25" omnis
                               450, // drivetrain rpm is 450
-                              2 // horizontal drift is 2
+                              8 // horizontal drift is 8
 );
 
 // imu
 pros::Imu imu(16);
 
+lemlib::TrackingWheel leftTrackingWheel(&left_motor_group, lemlib::Omniwheel::NEW_325, -6, 450);
+lemlib::TrackingWheel rightTrackingWheel(&right_motor_group, lemlib::Omniwheel::NEW_325, 6, 450);
+
 // odometry settings
-lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel 1, set to null
-                            nullptr, // vertical tracking wheel 2, set to nullptr as we are using IMEs
+lemlib::OdomSensors sensors(&leftTrackingWheel, // vertical tracking wheel 1, set to null
+                            &rightTrackingWheel, // vertical tracking wheel 2, set to nullptr as we are using IMEs
                             nullptr, // horizontal tracking wheel 1
                             nullptr, // horizontal tracking wheel 2, set to nullptr as we don't have a second one
                             &imu // inertial sensor
 );
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(5.8, // proportional gain (kP) //5.8
                                               0, // integral gain (kI)
-                                              3, // derivative gain (kD)
+                                              13, // derivative gain (kD) //13
                                               3, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
@@ -43,13 +46,13 @@ lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
+lemlib::ControllerSettings angular_controller(2.0, // proportional gain (kP) 1.9
                                               0, // integral gain (kI)
-                                              10, // derivative gain (kD)
+                                              13.6, // derivative gain (kD) 11.4
                                               3, // anti windup
                                               1, // small error range, in degrees
                                               100, // small error range timeout, in milliseconds
-                                              3, // large error range, in degrees
+                                            3, // large error range, in degrees
                                               500, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
@@ -63,7 +66,7 @@ lemlib::ExpoDriveCurve throttle_curve(5, //joystick deadzone
 //input curve for steer input during driver control
 lemlib::ExpoDriveCurve steer_curve(5, //joystick deadzone
 								   10, //minimum output where drivetrain will move
-								   1.01 //expo curve gain
+								   1.015 //expo curve gain
 );
 
 // create the chassis
@@ -90,6 +93,18 @@ void centerButton() {
 	}
 }
 
+void printInertialHeading() {
+	while (true) {
+		lemlib::Pose pose = chassis.getPose();
+		double heading = imu.get_heading();
+		std::string displayText = "X:" + std::to_string((int)pose.x) + 
+		                          " Y:" + std::to_string((int)pose.y) + 
+		                          " H:" + std::to_string((double)heading);
+		master.set_text(0, 0, displayText);
+		pros::delay(100); // update every 100ms
+	}
+}
+
 
 void initialize() {
 	pros::lcd::initialize();
@@ -99,8 +114,9 @@ void initialize() {
 	bottomIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	middleIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	indexer.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
-	intakeOptical.set_led_pwm(100); // set optical sensor LED to max brightness
+	intakeOptical.set_led_pwm(75); // set optical sensor LED to max brightness
 	pros::lcd::register_btn0_cb(centerButton);
+	pros::Task printInertialTask(printInertialHeading);
 }
 
 
@@ -150,7 +166,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		testAuton();
+		right4Block();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {
@@ -179,6 +195,6 @@ void opcontrol() {
 		descoreControl();
 		//////////////////////////////////////////////////////////////
 
-	 pros::delay(20);                               // Run for 20 ms then update
+	 pros::delay(10);                               // Run for 20 ms then update
 	}
 }
