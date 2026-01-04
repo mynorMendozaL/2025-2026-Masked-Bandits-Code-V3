@@ -200,7 +200,7 @@ void outtakeLowerMid(int voltage) {
     // Extend floating piston, retract hood piston, run all motors in reverse
     setFloatingPiston(true);
     setHoodPiston(false);
-    bottomIntake.move(-voltage);
+    bottomIntake.move_velocity(-300);
     middleIntake.move(-voltage);
     indexer.move(-voltage);
 }
@@ -234,6 +234,7 @@ void outtake(int voltage) {
 
 void intakeStop() {
     // Stop all intake motion and retract pistons
+    ++intakeOneShotToken; // Cancel any running one-shot tasks
     setFloatingPiston(false);
     setHoodPiston(false);
     bottomIntake.move(0);

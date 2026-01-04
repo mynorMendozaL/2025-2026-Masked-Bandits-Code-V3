@@ -166,7 +166,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		right4Block();
+		SAWP();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {
