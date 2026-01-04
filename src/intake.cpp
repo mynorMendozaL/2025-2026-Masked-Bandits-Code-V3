@@ -35,21 +35,24 @@ void setHoodPiston(bool extended) {
 }
 
 // Variant that will stop the indexer motor once its actual velocity falls below threshold
+// Intake storage function with optional indexer auto-stop
+// When stopIndexerWhenSlow is true, monitors indexer velocity and stops it when a block is detected
 void intakeStore(int voltage, bool stopIndexerWhenSlow) {
-    const double INDEXER_VEL_THRESHOLD = 25; // units from get_actual_velocity()
-    const int STARTUP_TICKS = 10; // Wait 10 ticks (~100ms) before checking velocity
-    static bool indexerStopped = false;
-    static int tickCounter = 0;
+    const double INDEXER_VEL_THRESHOLD = 25; // Velocity threshold indicating block resistance/jam
+    const int STARTUP_TICKS = 10; // ~100ms startup delay before velocity monitoring begins
+    static bool indexerStopped = false; // True when indexer stopped due to low velocity detection
+    static int tickCounter = 0; // Tracks elapsed ticks for startup delay
 
+    // Retract pistons to intake storage position
     setFloatingPiston(false);
     setHoodPiston(false);
 
-    // always run bottom and middle
+    // Run bottom and middle intake motors continuously
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
 
     if (!stopIndexerWhenSlow) {
-        // reset state and run indexer normally
+        // Standard mode: run indexer at constant velocity, reset tracking state
         indexerStopped = false;
         tickCounter = 0;
         indexer.move_velocity(200);
@@ -57,84 +60,81 @@ void intakeStore(int voltage, bool stopIndexerWhenSlow) {
     }
 
     if (!indexerStopped) {
-        // while not yet stopped, run indexer and check velocity
+        // Auto-stop mode: monitor indexer velocity after startup period
         indexer.move_velocity(200);
         tickCounter++;
         
-        // Only check velocity after startup period
+        // Check velocity after startup delay to avoid false triggers during acceleration
         if (tickCounter > STARTUP_TICKS) {
             double vel = indexer.get_actual_velocity();
+            // Low velocity indicates block jam - stop indexer
             if (vel < INDEXER_VEL_THRESHOLD) {
                 indexerStopped = true;
-                indexer.move(0);
+                indexer.move_velocity(50);
             }
         }
     } else {
-        // already stopped
-        indexer.move(0);
+        // Indexer stopped due to block detection - maintain stopped state
+        indexer.move_velocity(50);
     }
 }
 
 // Hue-based outtakeLong: checks intakeOptical to decide reverse logic
-// Red objects (hue ~0-15 or ~345-360) reverse for 250ms, then forward
+// Red objects (hue ~0-15 or ~345-360) reverse for 200ms, then forward
 // Blue objects (hue ~200-250) go forward only
+// Continuously held outtakeLong: checks optical sensor hue to determine sorting behavior
 void outtakeLong(bool held, int voltage) {
-    const int REVERSE_TICKS = 500;      // ~120ms at ~10ms loop 130
-   // const int MID_PHASE_TICKS = 37;   // ~370ms total (12 + 25 ticks)
-    static int tick = 0;
-    static int phase = 0; // 0=reverse, 1=mid phase, 2=forward
+    const int REVERSE_TICKS = 20;      // ~200ms at ~10ms loop frequency
+    static int tick = 0;               // Tracks elapsed ticks for phase timing
 
     if (!held) {
+        // Reset state when button released
         tick = 0;
-        phase = 0;
         return;
     }
 
+    // Retract floating piston, extend hood piston for long outtake position
     setFloatingPiston(false);
     setHoodPiston(true);
 
-    // Read current hue
+    // Read current hue from optical sensor
     int hue = intakeOptical.get_hue();
+    // Red objects have hue near 0 (wraps around 360)
     bool isRed = (hue < 15 || hue > 345);
+    // Blue objects have hue around 200-260
     bool isBlue = (hue > 190 && hue < 260);
 
-    // Determine if we should use color sorting based on mode
+    // Determine if we should trigger color sorting based on current mode
     bool shouldSort = false;
     if (outtakeLongMode == 1 && isRed) {
+        // Mode 1: Sort out (reject) red blocks
         shouldSort = true;
     } else if (outtakeLongMode == 2 && isBlue) {
+        // Mode 2: Sort out (reject) blue blocks
         shouldSort = true;
     }
 
     if (!shouldSort || outtakeLongMode == 0) {
-        // Mode 0 or no matching color: just go forward
+        // Mode 0 (no sorting) or no color match: run all motors forward
         bottomIntake.move(voltage);
         middleIntake.move(voltage);
         indexer.move(voltage);
     } else {
-        // Three-phase sequence
+        // Color sorting active: two-phase sequence to reject unwanted block
         if (tick < REVERSE_TICKS) {
-            // Phase 0: reverse all motors for 120ms
-            phase = 0;
+            // Phase 0 (Rejection): reverse indexer to push block back while intakes feed forward
             bottomIntake.move(voltage);
             middleIntake.move(voltage);
-            indexer.move_velocity(-180);//175
-        /*} else if (tick < MID_PHASE_TICKS) {
-            // Phase 1: bottom/middle forward, indexer reverse for 250ms
-            phase = 1;
-            bottomIntake.move(voltage);
-            middleIntake.move(voltage);
-            indexer.move(-voltage);*/
+            indexer.move_velocity(-180);
         } else {
-            // Phase 2: all forward
-            phase = 2;
+            // Phase 1 (Resume): all motors forward after rejection complete
             bottomIntake.move(voltage);
             middleIntake.move(voltage);
             indexer.move(voltage);
         }
     }
 
-    tick++;
+    tick++; // Increment tick counter for phase tracking
 }
 
 // Parameter struct and task functions for preemptible one-shot intake tasks
@@ -154,9 +154,9 @@ void outtakeLong(int voltage) {
 // Performs a reverse pulse followed by forward motion while held
 // Call with held=true every loop while L2 pressed; call with held=false to reset
 void outtakeUpperMid(bool held, int voltage) {
-    const int REVERSE_TICKS = 16; // ~120ms at typical loop frequency
-    static int tick = 0;
-    static bool didReverse = false;
+    const int REVERSE_TICKS = 16; // ~160ms at typical loop frequency (~10ms per tick)
+    static int tick = 0;          // Counts ticks to track phase timing
+    static bool didReverse = false; // Tracks whether reverse phase completed
 
     if (!held) {
         // Reset state when button released
@@ -165,28 +165,30 @@ void outtakeUpperMid(bool held, int voltage) {
         return;
     }
 
+    // Retract both pistons for upper mid outtake position
     setFloatingPiston(false);
     setHoodPiston(false);
 
     if (!didReverse && tick < REVERSE_TICKS) {
-        // Reverse phase: all motors reverse
+        // Reverse phase: run all motors backward to eject block upward
         bottomIntake.move(-voltage);
         middleIntake.move(-voltage);
         indexer.move(-voltage);
     } else {
+        // Forward phase: bottom/middle forward to feed, indexer reverse to prevent double-feed
         didReverse = true;
         bottomIntake.move(voltage);
         middleIntake.move(voltage);
-        indexer.move(-voltage);
+        indexer.move(-voltage);  // Keeps indexer reversed to hold back additional blocks
     } /* else {
-        // Forward phase: bottom/middle forward, indexer reverse
+        // Alternative forward phase with velocity control (commented out)
         didReverse = true;
         bottomIntake.move(voltage);
         middleIntake.move_velocity(150);
         indexer.move_velocity(-135);
     } */
 
-    tick++;
+    tick++; // Increment tick counter for phase tracking
 }
 
 // Non-blocking one-shot outtake: reverse for 120ms then forward
@@ -196,13 +198,25 @@ void outtakeUpperMid(int voltage) {
     new pros::Task(outtakeUpperMidTask, p, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "outtakeUpperMid_one_shot");
 }
 
+// Lower mid outtake: extends floating piston and reverses motors to eject block
+// Adjusts motor velocities based on input voltage for controlled ejection
 void outtakeLowerMid(int voltage) {
-    // Extend floating piston, retract hood piston, run all motors in reverse
-    setFloatingPiston(true);
-    setHoodPiston(false);
-    bottomIntake.move_velocity(-300);
-    middleIntake.move(-voltage);
-    indexer.move(-voltage);
+    if (voltage <= 127) {
+        // Normal voltage range
+        // Extend floating piston, retract hood piston for lower mid position
+        setFloatingPiston(true);
+        setHoodPiston(false);
+        bottomIntake.move(-voltage);  // Direct voltage control
+        middleIntake.move(-voltage);           // Direct voltage control
+        indexer.move(-voltage);                // Direct voltage control
+    } else {
+        // High voltage range: cap middle/indexer at max while allowing higher bottom speed
+        setFloatingPiston(true);
+        setHoodPiston(false);
+        bottomIntake.move_velocity(-voltage);  // Use full requested velocity
+        middleIntake.move(-127);               // Cap at maximum voltage
+        indexer.move(-127);                    // Cap at maximum voltage
+    }
 }
 
 void outtakeDoublePark() {
@@ -241,6 +255,7 @@ void intakeStop() {
     middleIntake.move(0);
     indexer.move(0);
 }
+
 void intakeControl() { 
     // Cycle outtakeLongMode on LEFT button press: 0 -> 1 -> 2 -> 0
     if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) {
