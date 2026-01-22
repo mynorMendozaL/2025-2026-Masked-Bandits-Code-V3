@@ -3,7 +3,7 @@
 #include "intake.hpp"
 #include "littleWill.hpp"
 #include "descore.hpp"
-#include "autons.hpp"
+#include "autons.hpp" // IWYU pragma: keep
 
 //left motor group
 pros::MotorGroup left_motor_group ({-1, -12, -11}, pros::MotorGears::blue);
@@ -84,13 +84,23 @@ bool autonStarted = false;
 pros::adi::DigitalIn bumper('C');
 
 void centerButton() {
-	static bool pressed = false; // flag to check if right button was pressed
-	pressed = !pressed; // toggle pressed state
-	if (pressed) {
-		outtakeLongMode++;
-	} else if (outtakeLongMode >= 2) {
-		outtakeLongMode = 0; // wrap around to 0 if above 2
+
+}
+
+void leftButton() {
+	autonSelection++;
+	if (autonSelection > 3) {
+		autonSelection = 0; // wrap around to 0
 	}
+	pros::lcd::set_text(0, "Left pressed!");
+}
+
+void rightButton() {
+	autonSelection--;
+	if (autonSelection < 0) {
+		autonSelection = 3; // wrap around to 3
+	}
+	pros::lcd::set_text(0, "Right pressed!");
 }
 
 void printInertialHeading() {
@@ -110,13 +120,17 @@ void initialize() {
 	pros::lcd::initialize();
 	chassis.calibrate();
 	chassis.setPose(0, 0, 0); // set initial pose to (0,0,0)
+	//pros::lcd::register_btn0_cb(centerButton);
+	//pros::lcd::register_btn1_cb(leftButton);
+	//pros::lcd::register_btn2_cb(rightButton);
 	chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD); // set brake mode to hold
 	bottomIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
-	middleIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	indexer.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
-	intakeOptical.set_led_pwm(75); // set optical sensor LED to max brightness
-	pros::lcd::register_btn0_cb(centerButton);
-	pros::Task printInertialTask(printInertialHeading);
+\
+	autonSelection = 0;
+	autonStarted = false;
+	
+	//pros::Task printInertialTask(printInertialHeading);
 }
 
 
@@ -126,53 +140,92 @@ void disabled() {
 
 
 void competition_initialize() {
+	// Ensure LCD is initialized
+	pros::lcd::initialize();
+	
+	//pros::lcd::set_text(1, "Press buttons to select");
+	
+	// Track previous button states to detect presses
+	uint8_t lastButtons = 0;
+
 	while (!autonStarted) {
-		if (bumper.get_value() == 1) {
+		// Read current button states
+		uint8_t buttons = pros::lcd::read_buttons();
+		
+		// Detect button presses (button is pressed now but wasn't before)
+		if ((buttons & LCD_BTN_LEFT) && !(lastButtons & LCD_BTN_LEFT)) {
+			// Left button pressed
 			autonSelection++;
-			pros::delay(500);
-		} else if (autonSelection > 4) {
-			autonSelection = 0;
+			if (autonSelection > 7) {
+				autonSelection = 0;
+			}
+			//pros::lcd::set_text(0, "Left pressed!");
 		}
 		
+		
+		if ((buttons & LCD_BTN_RIGHT) && !(lastButtons & LCD_BTN_RIGHT)) {
+			// Right button pressed
+			autonSelection--;
+			if (autonSelection < 0) {
+				autonSelection = 7;
+			}
+			//pros::lcd::set_text(0, "Right pressed!");
+		}
+		
+		lastButtons = buttons;
+		
+		// Update display based on current selections
 		switch(autonSelection) {
 			case 0:
-				pros::lcd::set_text(2, "red auton");
+				pros::lcd::set_text(2, "Skills Auton");
 				break;
 			case 1:
-				pros::lcd::set_text(2, "blue auton");
+				pros::lcd::set_text(2, "SAWP");
 				break;
 			case 2:
-				pros::lcd::set_text(2, "skills auton");
+				pros::lcd::set_text(2, "Right 4 Block");
 				break;
 			case 3:
-				pros::lcd::set_text(2, "auton disabled");
+				pros::lcd::set_text(2, "Right 7 Block");
+				break;
+			case 4:
+				pros::lcd::set_text(2, "Left 4 Block");
+				break;
+			case 5: 
+				pros::lcd::set_text(2, "Left 7 Block");
+				break;
+			case 6:
+				pros::lcd::set_text(2, "Right 4+3 Block");
+				break;
+			case 7:
+				pros::lcd::set_text(2, "Left 4+3 Block");
 				break;
 		}
-		switch(outtakeLongMode) {
-			case 0:
-				pros::lcd::set_text(3, "Color Sort None");
-				break;
-			case 1:
-				pros::lcd::set_text(3, "Color Sort Red");
-				break;
-			case 2:
-				pros::lcd::set_text(3, "Color Sort Blue");
-				break;
-		}
+		pros::delay(300); // 300ms delay for button debouncing
 	}
 }
 
 
 void autonomous() {
-	autonStarted = true;
+/*	autonStarted = true;
 	if (autonSelection == 0) {
-		SAWP();
+		left43Block();
 	} else if (autonSelection == 1) {
-		
+		SAWP();
 	} else if (autonSelection == 2) {
-		
+		right4Block();
+	} else if (autonSelection == 3) {
+		right7Block();
+	} else if (autonSelection == 4) {
+		left4Block();
+	} else if (autonSelection == 5) {
+		left7Block();
+	} else if (autonSelection ==6) {
+		right43Block();
+	} else if (autonSelection ==7) {
+		left43Block();
 	}
-
+*/
 }
 
 
@@ -194,7 +247,7 @@ void opcontrol() {
 		// Descore Control
 		descoreControl();
 		//////////////////////////////////////////////////////////////
-
+		
 	 pros::delay(10);                               // Run for 20 ms then update
 	}
 }
