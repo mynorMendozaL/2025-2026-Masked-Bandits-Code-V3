@@ -3,14 +3,14 @@
 
 // Intake Motors/Sensors
 pros::Motor bottomIntake(19, pros::MotorGears::blue);    // Port 19, 11W Blue Motor
-pros::Motor middleIntake(-20, pros::MotorGears::green);  // Port 20 (reversed), 5.5W Green Motor
-pros::Motor indexer(17, pros::MotorGears::green);        // Port 17, 5.5W Green Motor
+pros::Motor middleIntake(17, pros::MotorGears::green);  // Port 17 (reversed), 5.5W Green Motor
+pros::Motor indexer(-20, pros::MotorGears::green);        // Port 20, 5.5W Green Motor
 pros::Optical intakeOptical(7);    // Port 4
 pros::Distance intakeDistance(3);  // Port 3
 
 // Pneumatics used in intake system
 pros::adi::DigitalOut floatingPiston('F', false);  // Pneumatic piston on ADI port A
-pros::adi::DigitalOut hoodPiston('H', false);      // Pneumatic piston on ADI port B
+pros::adi::DigitalOut hoodPiston('A', false);      // Pneumatic piston on ADI port B
 pros::adi::DigitalOut doubleParkPiston('B', false); // Pneumatic piston on ADI port F
 
 // Controller used during user control
@@ -70,12 +70,12 @@ void intakeStore(int voltage, bool stopIndexerWhenSlow) {
             // Low velocity indicates block jam - stop indexer
             if (vel < INDEXER_VEL_THRESHOLD) {
                 indexerStopped = true;
-                indexer.move_velocity(50);
+                indexer.move_velocity(175);
             }
         }
     } else {
         // Indexer stopped due to block detection - maintain stopped state
-        indexer.move_velocity(50);
+        indexer.move_velocity(175);
     }
 }
 
@@ -273,7 +273,7 @@ void intakeControl() {
     }
     
     // Handle L2: reverse-then-forward for upper mid
-    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
         outtakeUpperMid(true, 127);
     } else {
         outtakeUpperMid(false, 0); // reset internal state

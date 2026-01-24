@@ -36,11 +36,11 @@ void right4Block() {
     setLittleWill(false);
     
     //Extend Wing then move to use Wing on Goal
-    wing1.set_value(true);
+    //wing1.set_value(true);
     chassis.moveToPoint(48.3, 0, 1000, {.forwards = false});
     chassis.turnToHeading(182, 1000);
     chassis.moveToPoint(50, 28.5, 1000, {.forwards = false, .maxSpeed = 60});
-    wing1.set_value(false);
+    //wing1.set_value(false);
 }
 
 void SAWP() {
