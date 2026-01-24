@@ -81,15 +81,24 @@ lemlib::Chassis chassis(drivetrain, // drivetrain settings
 int autonSelection = 0;
 bool autonStarted = false;
 
-pros::adi::DigitalIn bumper('C');
 
-void centerButton() {
-	static bool pressed = false; // flag to check if right button was pressed
-	pressed = !pressed; // toggle pressed state
-	if (pressed) {
-		outtakeLongMode++;
-	} else if (outtakeLongMode >= 2) {
-		outtakeLongMode = 0; // wrap around to 0 if above 2
+void leftButton() {
+	static bool pressed = false;
+	if (!pressed) {
+		pressed = true;
+		autonSelection = (autonSelection + 1) % 8; // cycle through 8 auton options
+	} else {
+		pressed = false;
+	}
+}
+
+void rightButton () {
+	static bool pressed = false;
+	if (!pressed) {
+		pressed = true;
+		autonSelection = (autonSelection + 3) % 8; // cycle backwards through 8 auton options
+	} else {
+		pressed = false;
 	}
 }
 
@@ -114,9 +123,9 @@ void initialize() {
 	bottomIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	middleIntake.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
 	indexer.set_brake_mode(pros::E_MOTOR_BRAKE_COAST); // set brake mode to coast
-	intakeOptical.set_led_pwm(75); // set optical sensor LED to max brightness
-	pros::lcd::register_btn0_cb(centerButton);
-	pros::Task printInertialTask(printInertialHeading);
+	pros::lcd::register_btn1_cb(leftButton);
+	pros::lcd::register_btn2_cb(rightButton);
+	//pros::Task printInertialTask(printInertialHeading);
 }
 
 
@@ -127,13 +136,6 @@ void disabled() {
 
 void competition_initialize() {
 	while (!autonStarted) {
-		if (bumper.get_value() == 1) {
-			autonSelection++;
-			pros::delay(500);
-		} else if (autonSelection > 4) {
-			autonSelection = 0;
-		}
-		
 		switch(autonSelection) {
 			case 0:
 				pros::lcd::set_text(2, "red auton");
@@ -146,17 +148,6 @@ void competition_initialize() {
 				break;
 			case 3:
 				pros::lcd::set_text(2, "auton disabled");
-				break;
-		}
-		switch(outtakeLongMode) {
-			case 0:
-				pros::lcd::set_text(3, "Color Sort None");
-				break;
-			case 1:
-				pros::lcd::set_text(3, "Color Sort Red");
-				break;
-			case 2:
-				pros::lcd::set_text(3, "Color Sort Blue");
 				break;
 		}
 	}
@@ -195,6 +186,6 @@ void opcontrol() {
 		descoreControl();
 		//////////////////////////////////////////////////////////////
 
-	 pros::delay(10);                               // Run for 20 ms then update
+	 pros::delay(10);                               // Run for 10 ms then update
 	}
 }

@@ -3,6 +3,7 @@
 #include "descore.hpp"
 
 pros::adi::DigitalOut wing('E', false);
+pros::adi::DigitalOut midDescore('C', false);
 
 bool wingToggle = false;
 bool midDescoreToggle = false;
@@ -12,11 +13,21 @@ void setWing(bool extended) {
     wing.set_value(extended);
 }
 
+void setMidDescore(bool extended) {
+    midDescoreToggle = extended;
+    midDescore.set_value(extended);
+}
+
 void descoreControl() {
 
     if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
         setWing(true);
     } else {
         setWing(false);
+    }
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
+        setMidDescore(true);
+    } else {
+        setMidDescore(false);
     }
 }
