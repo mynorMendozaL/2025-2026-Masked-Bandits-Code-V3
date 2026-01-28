@@ -14,6 +14,7 @@ pros::Controller master(pros::E_CONTROLLER_MASTER);
 
 // Toggles for intake control state tracking
 bool hoodPistonToggle = false;      // Tracks hood piston state
+bool resetOuttakeUpperMidFlag = false; // Flag to reset outtakeUpperMid state
 
 // Pneumatic control functions
 void setHoodPiston(bool extended) {
@@ -25,7 +26,7 @@ void setHoodPiston(bool extended) {
 // Intake storage function with optional indexer auto-stop
 // When stopIndexerWhenSlow is true, monitors indexer velocity and stops it when a block is detected
 void intakeStore(int voltage) {
-    setHoodPiston(true); // Extend hood piston for intake position
+    setHoodPiston(false); // Extend hood piston for intake position
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
     indexer.move_velocity(150); // Use velocity control for smoother operation
@@ -36,7 +37,7 @@ void intakeStore(int voltage) {
 // Blue objects (hue ~200-250) go forward only
 // Continuously held outtakeLong: checks optical sensor hue to determine sorting behavior
 void outtakeLong(int voltage) {
-    setHoodPiston(false); // Retract hood piston for outtake position
+    setHoodPiston(true); // Retract hood piston for outtake position
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
     indexer.move(voltage);
@@ -44,23 +45,19 @@ void outtakeLong(int voltage) {
 
 
 // Performs a reverse pulse followed by forward motion while held
-// Call with held=true every loop while L2 pressed; call with held=false to reset
-bool held = false;
-void outtakeUpperMid( int voltage) {
-    const int REVERSE_TICKS = 16; // ~160ms at typical loop frequency (~10ms per tick)
+void outtakeUpperMid(int voltage) {
+    const int REVERSE_TICKS = 20; // ~160ms at typical loop frequency (~10ms per tick)
     static int tick = 0;          // Counts ticks to track phase timing
     static bool didReverse = false; // Tracks whether reverse phase completed
 
-    if (!held) {
-        // Reset state when button released
+    // Reset state if flag is set (from intakeControl when button is released)
+    if (resetOuttakeUpperMidFlag) {
         tick = 0;
         didReverse = false;
-        return;
+        resetOuttakeUpperMidFlag = false;
     }
 
-    held = true;  // Keep held state active while button is pressed
-    
-    // Retract both pistons for upper mid outtake position
+    // Retract piston for upper mid outtake position
     setHoodPiston(false);
 
     if (!didReverse && tick < REVERSE_TICKS) {
@@ -72,15 +69,9 @@ void outtakeUpperMid( int voltage) {
         // Forward phase: bottom/middle forward to feed, indexer reverse to prevent double-feed
         didReverse = true;
         bottomIntake.move(voltage);
-        middleIntake.move(voltage);
-        indexer.move(-voltage);  // Keeps indexer reversed to hold back additional blocks
-    } /* else {
-        // Alternative forward phase with velocity control (commented out)
-        didReverse = true;
-        bottomIntake.move(voltage);
-        middleIntake.move_velocity(150);
-        indexer.move_velocity(-135);
-    } */
+        middleIntake.move_velocity(125);
+        indexer.move_velocity(-100);  // Keeps indexer reversed to hold back additional blocks
+    }
 
     tick++; // Increment tick counter for phase tracking
 }
@@ -90,15 +81,15 @@ void outtakeMid(int voltage, int forwardDuration, int reverseDuration) {
     setHoodPiston(false);
     
     // Reverse phase: ~160ms
-    bottomIntake.move(-voltage);
-    middleIntake.move(-voltage);
-    indexer.move(-voltage);
+    bottomIntake.move(-127);
+    middleIntake.move(-127);
+    indexer.move(-127);
     pros::delay(reverseDuration);
     
     // Forward phase: bottom/middle forward, indexer reversed to hold back blocks
-    bottomIntake.move(voltage);
-    middleIntake.move(voltage);
-    indexer.move(-voltage);
+    bottomIntake.move(127);
+    middleIntake.move_velocity(125);
+    indexer.move_velocity(-voltage);
     pros::delay(forwardDuration);
     
     intakeStop();
@@ -112,7 +103,6 @@ void outtake(int voltage) {
 }
 
 void intakeStop() {
-    held = false;
     setHoodPiston(false);
     bottomIntake.move(0);
     middleIntake.move(0);
@@ -120,6 +110,7 @@ void intakeStop() {
 }
 
 void intakeControl() { 
+    static bool wasRightPressed = false;
 
     if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
         intakeStore(127);
@@ -127,10 +118,15 @@ void intakeControl() {
         outtakeLong(127);
     } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
         outtakeUpperMid(127);
+        wasRightPressed = true;
     } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
         outtake(127);
     } else {
+        // Button was just released - set reset flag
+        if (wasRightPressed) {
+            resetOuttakeUpperMidFlag = true;
+            wasRightPressed = false;
+        }
         intakeStop();
     }
-
 }

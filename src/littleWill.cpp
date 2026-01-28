@@ -10,7 +10,7 @@ void setLittleWill(bool extended) {
     littleWill.set_value(extended);
 }
 void littleWillControl() {
-    if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
+    if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
         setLittleWill(!littleWillToggle);
     }
 }

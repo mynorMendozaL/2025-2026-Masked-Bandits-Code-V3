@@ -96,7 +96,7 @@ void rightButton () {
 	static bool pressed = false;
 	if (!pressed) {
 		pressed = true;
-		autonSelection = (autonSelection + 3) % 8; // cycle backwards through 8 auton options
+		autonSelection = (autonSelection + 7) % 8; // cycle backwards through 8 auton options
 	} else {
 		pressed = false;
 	}
@@ -157,7 +157,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		SAWP();
+		right43Block();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {
