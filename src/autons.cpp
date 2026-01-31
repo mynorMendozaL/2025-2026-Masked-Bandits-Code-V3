@@ -43,43 +43,45 @@ void SAWP() {
     chassis.moveToPoint(34.6, .25, 1000);
     pros::delay(50);
     chassis.turnToHeading(176, 750, {.maxSpeed = 90});
-    pros::delay(200);
+    pros::delay(100);
     setLittleWill(true);
 
     //Move to Match Loader and intake
     chassis.moveToPoint(34.6, -39.6, 1000, {.maxSpeed = 70});
     intakeStore(127);
-    pros::delay(1150);
+    pros::delay(1000);
 
     //Move backwards to Long Goal and score
-    chassis.moveToPoint(39.3, 20, 1000, {.forwards = false, .maxSpeed = 70}, false);
+    chassis.moveToPoint(36.75, 20, 1000, {.forwards = false, .maxSpeed = 65}, false);
     outtakeLong(127);
-    pros::delay(1250);
+    pros::delay(1100);
     chassis.setPose(0,0,180);
-    pros::delay(20);
+    pros::delay(5);
     chassis.moveToPoint(-0.55, -20, 1000);
     pros::delay(400);
     intakeStop();
 
     //Move towards 3 Block stack and intake
-    chassis.turnToPoint(-28, -2, 750, {.direction = lemlib::AngularDirection::CW_CLOCKWISE});
+    chassis.turnToPoint(-27, 2.15, 750, {.direction = lemlib::AngularDirection::CW_CLOCKWISE, .minSpeed = 20, .earlyExitRange = 6});
     setLittleWill(false);
-    chassis.moveToPoint(-28, -2, 1000);
-    intakeStore(127);
-    pros::delay(570);
+    chassis.moveToPoint(-27, 2.15, 1000);
+    intakeStore(100);
+    pros::delay(625);
     setLittleWill(true);
-    chassis.turnToPoint(-71.3, -4.5, 1000);
-    chassis.moveToPoint(-71.3, -4.5, 10000);
+   // chassis.turnToPoint(-73, 2, 1000, {.minSpeed = 25, .earlyExitRange = 6});
+    chassis.moveToPoint(-73, 2, 10000);
     setLittleWill(false);
     pros::delay(800);
     setLittleWill(true);
     pros::delay(100);
 
     //Move towards Upper Middle Goal and score
-    chassis.moveToPoint(-40, 17, 1000, {.forwards = false, .maxSpeed = 80}, false);
-    outtakeMid(100, 900);
+    chassis.moveToPoint(-49, 28, 1000, {.forwards = false, .maxSpeed = 80}, false);
+    outtakeMid(127, 850);
+    chassis.moveToPose(-98, -47, 180, 2200, {.lead = 0.45, .maxSpeed = 78});
     intakeStore(127);
-    chassis.moveToPose(-90.3, -70, 180, 2000, {.lead = 0.5, .maxSpeed = 80});
+    chassis.moveToPoint(-96, 0, 1000, {.forwards = false, .maxSpeed = 80}, false);
+    outtakeLong(127);
 }
 
 void right7Block() {
@@ -89,11 +91,11 @@ void right7Block() {
     pros::delay(900);
     setLittleWill(true);
     pros::delay(100);
-    chassis.moveToPose(34, -24, 180, 1900, {.lead = 0.5});
-    chassis.moveToPoint(34.286, 22, 1000, {.forwards = false, .maxSpeed = 70}, false);
+    chassis.moveToPose(38, -26, 180, 1900, {.lead = 0.55});
+    chassis.moveToPoint(37.1, 23, 1000, {.forwards = false, .maxSpeed = 70}, false);
     outtakeLong(127);
     pros::delay(1700);
-    chassis.moveToPoint(24.15, 0, 1000);
+    chassis.moveToPoint(48.125, 0, 1000);
     pros::delay(300);
     intakeStop();
     setLittleWill(false);
@@ -101,7 +103,7 @@ void right7Block() {
     chassis.turnToHeading(180, 1000);
     pros::delay(200);
     wing.set_value(false);
-    chassis.moveToPoint(24, 32, 1000, {.forwards = false, .maxSpeed = 80});
+    chassis.moveToPoint(48.125, 32, 1000, {.forwards = false, .maxSpeed = 80});
 }
 
 void left4Block() {
@@ -220,36 +222,35 @@ void right43Block() {
 
     //Move towards Match Loader
     chassis.moveToPoint(34.6, 0, 1000);
-    pros::delay(50);
-    setLittleWill(true);
     chassis.turnToHeading(176, 750, {.maxSpeed = 90});
+    pros::delay(200);
+    setLittleWill(true);
 
     //Move to Match Loader and intake
-    chassis.moveToPoint(35.75, -38, 1000, {.maxSpeed = 70});
+    chassis.moveToPoint(35.75, -38, 1000, {.maxSpeed = 65});
     intakeStore(127);
-    pros::delay(965);
+    pros::delay(1100);
 
     //Move backwards to Long Goal and score
-    chassis.moveToPoint(37, 20, 1000, {.forwards = false, .maxSpeed = 60}, false);
+    chassis.moveToPoint(38.25, 20, 1000, {.forwards = false, .maxSpeed = 60}, false);
     outtakeLong(127);
     pros::delay(1250);
-    chassis.moveToPoint(37.5, -2, 1000);
+    chassis.moveToPoint(37.75, -5, 1000);
     pros::delay(400);
     intakeStop();
 
     //Move towards 3 Block stack and intake
-    chassis.turnToHeading(314, 750, {.direction = lemlib::AngularDirection::CW_CLOCKWISE});
+    chassis.turnToPoint(11, 11.5, 750,  {.direction = lemlib::AngularDirection::CW_CLOCKWISE});
     setLittleWill(false);
-    chassis.moveToPoint(12, 11.5, 1000, {.maxSpeed = 60});
+    chassis.moveToPoint(11, 11.5, 1000, {.maxSpeed = 60});
     bottomIntake.move(127);
     pros::delay(800);
     setLittleWill(true);
-    pros::delay(700);
+    pros::delay(600);
+    setLittleWill(false);
 
     //Move towards Lower Middle Goal and score
-    chassis.moveToPoint(0, 23.25, 1000, {.maxSpeed =  60});// X -2, y 23
-    pros::delay(100);
-    setLittleWill(false);
+    chassis.moveToPoint(3, 18.25, 1000, {.maxSpeed =  60});// X -2, y 23
     pros::delay(350);
     outtake(450);
     pros::delay(1700);
@@ -267,17 +268,17 @@ void left43Block() {
     setLittleWill(true);
     pros::delay(100);
     chassis.turnToHeading(-135, 1000);
-    chassis.moveToPoint(7.25, 36.5, 1000, {.forwards = false}, false);
-    outtakeUpperMid(85);
-    pros::delay(1300);
-    intakeStop();
-    chassis.moveToPose(-34, -56, 180, 2200, {.lead = 0.72, .maxSpeed = 75});
+    chassis.moveToPoint(7.25, 35.5, 1000, {.forwards = false}, false);
+    outtakeMid(100, 1300);
+    chassis.moveToPose(-34, -58, 180, 2400, {.lead = 0.72, .maxSpeed = 70});
     intakeStore(127);
     chassis.moveToPoint(-31.6, 22.3, 1000, {.forwards = false, .maxSpeed = 70}, false);
     outtakeLong(127);
     pros::delay(1800);
-    chassis.moveToPoint(-20.55, 0, 1000);
+    chassis.moveToPoint(-21.8, 0, 1000);
     pros::delay(350);
     intakeStop();
     setLittleWill(false);
+    chassis.turnToHeading(180, 1000);
+    chassis.moveToPoint(-21.8, 28, 1000, {.forwards = false});
 }
