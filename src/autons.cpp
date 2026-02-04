@@ -4,6 +4,7 @@
 #include "intake.hpp" // IWYU pragma: keep
 #include "littleWill.hpp" // IWYU pragma: keep
 #include "descore.hpp" // IWYU pragma: keep
+#include "distanceReset.hpp" // IWYU pragma: keep
 #include "autons.hpp" // IWYU pragma: keep
 
 extern lemlib::Chassis chassis; // declare chassis as extern
@@ -156,7 +157,14 @@ void left7Block() {
 }
 
 void skillsAuton() {
-    //Setting current robot pose to (0,0) facing 90 degrees
+    chassis.setPose(0,0,0);
+    setWing(true);
+    pros::delay(100);
+    setWing(false);
+    intakeStore(127);
+    pros::delay(100);
+    intakeStop();
+  /*  //Setting current robot pose to (0,0) facing 90 degrees
     chassis.setPose(0, 0, 90);
 
     //Move towards Match Loader and load
@@ -213,7 +221,7 @@ void skillsAuton() {
     chassis.moveToPoint(-27.184, 33.307, 5000);
     chassis.moveToPoint(-37.225, 23.266, 5000);
     chassis.moveToPoint(-13.225, 23.266, 5000);
-    chassis.moveToPoint(-13.225, -18.368, 5000);
+    chassis.moveToPoint(-13.225, -18.368, 5000);*/
 }
 
 void right43Block() {
@@ -223,11 +231,11 @@ void right43Block() {
     //Move towards Match Loader
     chassis.moveToPoint(34.6, 0, 1000);
     chassis.turnToHeading(176, 750, {.maxSpeed = 90});
-    pros::delay(200);
+    pros::delay(100);
     setLittleWill(true);
 
     //Move to Match Loader and intake
-    chassis.moveToPoint(35.75, -38, 1000, {.maxSpeed = 65});
+    chassis.moveToPoint(35.75, -38, 1000, {.maxSpeed = 60});
     intakeStore(127);
     pros::delay(1100);
 
@@ -240,24 +248,26 @@ void right43Block() {
     intakeStop();
 
     //Move towards 3 Block stack and intake
-    chassis.turnToPoint(11, 11.5, 750,  {.direction = lemlib::AngularDirection::CW_CLOCKWISE});
+    chassis.turnToPoint(10, 12.5, 750,  {.direction = lemlib::AngularDirection::CW_CLOCKWISE});
     setLittleWill(false);
-    chassis.moveToPoint(11, 11.5, 1000, {.maxSpeed = 60});
+    chassis.moveToPoint(10, 12.5, 1000, {.maxSpeed = 60});
     bottomIntake.move(127);
-    pros::delay(800);
+    pros::delay(825);
     setLittleWill(true);
     pros::delay(600);
     setLittleWill(false);
 
     //Move towards Lower Middle Goal and score
-    chassis.moveToPoint(3, 18.25, 1000, {.maxSpeed =  60});// X -2, y 23
+    chassis.moveToPoint(-1.3, 22, 1500, {.maxSpeed =  60});// X -2, y 23
     pros::delay(350);
     outtake(450);
     pros::delay(1700);
 
     //Move towards 2nd 3 Block stake and intake
-    chassis.moveToPoint(15, 12.0, 1000, {.forwards = false});
+    chassis.moveToPoint(27.5, 0, 1000, {.forwards = false});
     intakeStop();
+    chassis.turnToHeading(0, 1000);
+    chassis.moveToPoint(27.25, 27, 1000, {.maxSpeed = 90});
 }
 
 void left43Block() {
@@ -270,7 +280,7 @@ void left43Block() {
     chassis.turnToHeading(-135, 1000);
     chassis.moveToPoint(7.25, 35.5, 1000, {.forwards = false}, false);
     outtakeMid(100, 1300);
-    chassis.moveToPose(-34, -58, 180, 2400, {.lead = 0.72, .maxSpeed = 70});
+    chassis.moveToPose(-34, -58.5, 180, 2500, {.lead = 0.72, .maxSpeed = 70});
     intakeStore(127);
     chassis.moveToPoint(-31.6, 22.3, 1000, {.forwards = false, .maxSpeed = 70}, false);
     outtakeLong(127);
