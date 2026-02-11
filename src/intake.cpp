@@ -8,12 +8,14 @@ pros::Motor indexer(-20, pros::MotorGears::green);        // Port 20, 5.5W Green
 
 // Pneumatics used in intake system
 pros::adi::DigitalOut hoodPiston('A', false);      // Pneumatic piston on ADI port B
+pros::adi::DigitalOut floatingPiston('G', false);  // Pneumatic piston on ADI port H
 
 // Controller used during user control
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 
 // Toggles for intake control state tracking
 bool hoodPistonToggle = false;      // Tracks hood piston state
+bool floatingPistonToggle = false; // Tracks floating piston state
 bool resetOuttakeUpperMidFlag = false; // Flag to reset outtakeUpperMid state
 
 // Pneumatic control functions
@@ -22,11 +24,17 @@ void setHoodPiston(bool extended) {
     hoodPiston.set_value(extended);
 }
 
+void setFloatingPiston(bool extended) {
+    floatingPistonToggle = extended;
+    floatingPiston.set_value(extended);
+}
+
 // Variant that will stop the indexer motor once its actual velocity falls below threshold
 // Intake storage function with optional indexer auto-stop
 // When stopIndexerWhenSlow is true, monitors indexer velocity and stops it when a block is detected
 void intakeStore(int voltage) {
     setHoodPiston(false); // Extend hood piston for intake position
+    setFloatingPiston(false); // Retract floating piston for intake position
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
     indexer.move_velocity(150); // Use velocity control for smoother operation
@@ -38,6 +46,7 @@ void intakeStore(int voltage) {
 // Continuously held outtakeLong: checks optical sensor hue to determine sorting behavior
 void outtakeLong(int voltage) {
     setHoodPiston(true); // Retract hood piston for outtake position
+    setFloatingPiston(false); // Retract floating piston for outtake position
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
     indexer.move(voltage);
@@ -59,6 +68,7 @@ void outtakeUpperMid(int voltage) {
 
     // Retract piston for upper mid outtake position
     setHoodPiston(false);
+    setFloatingPiston(false);
 
     if (!didReverse && tick < REVERSE_TICKS) {
         // Reverse phase: run all motors backward to eject block upward
@@ -69,8 +79,10 @@ void outtakeUpperMid(int voltage) {
         // Forward phase: bottom/middle forward to feed, indexer reverse to prevent double-feed
         didReverse = true;
         bottomIntake.move(voltage);
-        middleIntake.move_velocity(125);
-        indexer.move_velocity(-100);  // Keeps indexer reversed to hold back additional blocks
+        middleIntake.move(voltage);
+        indexer.move(-voltage);
+        //middleIntake.move_velocity(125);
+        //indexer.move_velocity(-100);  // Keeps indexer reversed to hold back additional blocks
     }
 
     tick++; // Increment tick counter for phase tracking
@@ -79,6 +91,7 @@ void outtakeUpperMid(int voltage) {
 // Blocking version for autonomous: does full reverse-then-forward sequence in one call
 void outtakeMid(int voltage, int forwardDuration, int reverseDuration) {
     setHoodPiston(false);
+    setFloatingPiston(false);
     
     // Reverse phase: ~160ms
     bottomIntake.move(-127);
@@ -87,16 +100,25 @@ void outtakeMid(int voltage, int forwardDuration, int reverseDuration) {
     pros::delay(reverseDuration);
     
     // Forward phase: bottom/middle forward, indexer reversed to hold back blocks
-    bottomIntake.move(127);
-    middleIntake.move_velocity(125);
-    indexer.move_velocity(-voltage);
+    bottomIntake.move(voltage);
+    middleIntake.move(voltage);
+    indexer.move_velocity(-155);
     pros::delay(forwardDuration);
     
     intakeStop();
 }
 
+void outtakeLowerMid(int voltage) {
+    setHoodPiston(false);
+    setFloatingPiston(true);
+    bottomIntake.move(-voltage);
+    middleIntake.move(-voltage);
+    indexer.move(-voltage);
+}
+
 void outtake(int voltage) {
     setHoodPiston(false);
+    setFloatingPiston(false);
     bottomIntake.move(-voltage);
     middleIntake.move(-voltage);
     indexer.move(-voltage);
@@ -104,6 +126,7 @@ void outtake(int voltage) {
 
 void intakeStop() {
     setHoodPiston(false);
+    setFloatingPiston(false);
     bottomIntake.move(0);
     middleIntake.move(0);
     indexer.move(0);
@@ -121,6 +144,8 @@ void intakeControl() {
         wasRightPressed = true;
     } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
         outtake(127);
+    } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
+        outtakeLowerMid(127);
     } else {
         // Button was just released - set reset flag
         if (wasRightPressed) {

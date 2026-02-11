@@ -2,8 +2,8 @@
 #include "intake.hpp"
 #include "descore.hpp"
 
-pros::adi::DigitalOut wing('E', false);
-pros::adi::DigitalOut midDescore('H', false);
+pros::adi::DigitalOut wing('H', false);
+pros::adi::DigitalOut midDescore('F', false);
 
 bool wingToggle = false;
 bool midDescoreToggle = false;

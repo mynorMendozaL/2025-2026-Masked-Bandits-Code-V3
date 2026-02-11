@@ -156,7 +156,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		right43Block();
+		left43Block();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {
