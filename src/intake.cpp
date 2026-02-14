@@ -37,7 +37,7 @@ void intakeStore(int voltage) {
     setFloatingPiston(false); // Retract floating piston for intake position
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
-    indexer.move_velocity(150); // Use velocity control for smoother operation
+    indexer.move_velocity(125); // Use velocity control for smoother operation
 }
 
 // Hue-based outtakeLong: checks intakeOptical to decide reverse logic
