@@ -82,7 +82,7 @@ void outtakeUpperMid(int voltage) {
         middleIntake.move(voltage);
         indexer.move(-voltage);
         //middleIntake.move_velocity(125);
-        //indexer.move_velocity(-100);  // Keeps indexer reversed to hold back additional blocks
+        //indexer.move_velocity(-125);  // Keeps indexer reversed to hold back additional blocks
     }
 
     tick++; // Increment tick counter for phase tracking
@@ -102,7 +102,7 @@ void outtakeMid(int voltage, int forwardDuration, int reverseDuration) {
     // Forward phase: bottom/middle forward, indexer reversed to hold back blocks
     bottomIntake.move(voltage);
     middleIntake.move(voltage);
-    indexer.move_velocity(-155);
+    indexer.move_velocity(-145);
     pros::delay(forwardDuration);
     
     intakeStop();
@@ -114,6 +114,7 @@ void outtakeLowerMid(int voltage) {
     bottomIntake.move(-voltage);
     middleIntake.move(-voltage);
     indexer.move(-voltage);
+    //indexer.move_velocity(-450);
 }
 
 void outtake(int voltage) {

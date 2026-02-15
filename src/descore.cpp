@@ -19,7 +19,6 @@ void setMidDescore(bool extended) {
 }
 
 void descoreControl() {
-
     if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
         setWing(true);
     } else {
