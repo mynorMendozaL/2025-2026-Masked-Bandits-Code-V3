@@ -2,9 +2,9 @@
 #include "intake.hpp"
 
 // Intake Motors/Sensors
-pros::Motor bottomIntake(19, pros::MotorGears::blue);    // Port 19, 11W Blue Motor
-pros::Motor middleIntake(17, pros::MotorGears::green);  // Port 17 (reversed), 5.5W Green Motor
-pros::Motor indexer(-20, pros::MotorGears::green);        // Port 20, 5.5W Green Motor
+pros::Motor bottomIntake(11, pros::MotorGears::blue);    // Port 19, 11W Blue Motor
+pros::Motor middleIntake(19, pros::MotorGears::green);  // Port 17 (reversed), 5.5W Green Motor
+pros::Motor indexer(-14, pros::MotorGears::green);        // Port 20, 5.5W Green Motor
 
 // Pneumatics used in intake system
 pros::adi::DigitalOut hoodPiston('A', false);      // Pneumatic piston on ADI port B
@@ -55,7 +55,8 @@ void outtakeLong(int voltage) {
 
 // Performs a reverse pulse followed by forward motion while held
 void outtakeUpperMid(int voltage) {
-    const int REVERSE_TICKS = 20; // ~160ms at typical loop frequency (~10ms per tick)
+    const int REVERSE_TICKS = 28; // ~160ms at typical loop frequency (~10ms per tick)
+    //const int REVERSE_TICKS = 20; // ~160ms at typical loop frequency (~10ms per tick)
     static int tick = 0;          // Counts ticks to track phase timing
     static bool didReverse = false; // Tracks whether reverse phase completed
 
@@ -72,17 +73,18 @@ void outtakeUpperMid(int voltage) {
 
     if (!didReverse && tick < REVERSE_TICKS) {
         // Reverse phase: run all motors backward to eject block upward
-        bottomIntake.move(-voltage);
+        //bottomIntake.move(-voltage);
+        bottomIntake.move_velocity(-200);
         middleIntake.move(-voltage);
-        indexer.move(-voltage);
+        indexer.move_velocity(-190);
     } else {
         // Forward phase: bottom/middle forward to feed, indexer reverse to prevent double-feed
         didReverse = true;
         bottomIntake.move(voltage);
-        middleIntake.move(voltage);
-        indexer.move(-voltage);
-        //middleIntake.move_velocity(125);
-        //indexer.move_velocity(-125);  // Keeps indexer reversed to hold back additional blocks
+       //middleIntake.move(voltage);
+        //indexer.move(-voltage);
+        middleIntake.move_velocity(150);
+        indexer.move_velocity(-20);  // Keeps indexer reversed to hold back additional blocks
     }
 
     tick++; // Increment tick counter for phase tracking

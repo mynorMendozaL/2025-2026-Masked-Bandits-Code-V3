@@ -6,9 +6,9 @@
 #include "autons.hpp"
 
 //left motor group
-pros::MotorGroup left_motor_group ({-1, -12, -11}, pros::MotorGears::blue);
+pros::MotorGroup left_motor_group ({-9, -10, -12}, pros::MotorGears::blue);
 //right motor group
-pros::MotorGroup right_motor_group ({13, 15, 14}, pros::MotorGears::blue);
+pros::MotorGroup right_motor_group ({8, 1, 13}, pros::MotorGears::blue);
 
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&left_motor_group, // left motor group
@@ -20,7 +20,7 @@ lemlib::Drivetrain drivetrain(&left_motor_group, // left motor group
 );
 
 // imu
-pros::Imu imu(16);
+pros::Imu imu(20);
 
 lemlib::TrackingWheel leftTrackingWheel(&left_motor_group, lemlib::Omniwheel::NEW_325, -6, 450);
 lemlib::TrackingWheel rightTrackingWheel(&right_motor_group, lemlib::Omniwheel::NEW_325, 6, 450);
