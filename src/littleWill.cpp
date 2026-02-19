@@ -2,7 +2,7 @@
 #include "littleWill.hpp"
 #include "intake.hpp"
 
-pros::adi::DigitalOut littleWill('D', false);
+pros::adi::DigitalOut littleWill('B', false);
 bool littleWillToggle = false;
 
 void setLittleWill(bool extended) {

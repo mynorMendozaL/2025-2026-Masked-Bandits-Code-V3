@@ -8,7 +8,7 @@
 //left motor group
 pros::MotorGroup left_motor_group ({-9, -10, -12}, pros::MotorGears::blue);
 //right motor group
-pros::MotorGroup right_motor_group ({8, 1, 13}, pros::MotorGears::blue);
+pros::MotorGroup right_motor_group ({15, 1, 13}, pros::MotorGears::blue);
 
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&left_motor_group, // left motor group
@@ -156,7 +156,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		altLeft7Block();
+		SAWP();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {
@@ -167,7 +167,8 @@ void autonomous() {
 
 
 void opcontrol() {
-	//setWing(true);
+	setWing(true);
+	setLittleWill(true);
 	while (true) {
 	//Controller input for driving
 		////////////////////////////////////////////////////////////
