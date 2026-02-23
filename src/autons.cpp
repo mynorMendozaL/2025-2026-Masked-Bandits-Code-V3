@@ -159,45 +159,47 @@ void right43Block() {
     chassis.setPose(0, 0, 90);
 
     //Move towards Match Loader
-    chassis.moveToPoint(34.6, 0, 1000);
-    chassis.turnToHeading(176, 750, {.maxSpeed = 90});
-    pros::delay(100);
+    chassis.moveToPoint(36, .25, 1000);
+    pros::delay(50);
+    chassis.turnToPoint(38, -39.6, 500, {.maxSpeed = 90});//750
+    pros::delay(75);
     setLittleWill(true);
 
     //Move to Match Loader and intake
-    chassis.moveToPoint(35.75, -38, 1000, {.maxSpeed = 60});
+    chassis.moveToPoint(38, -39.6, 1000, {.maxSpeed = 65});
     intakeStore(127);
-    pros::delay(1000);
+    pros::delay(750);
 
     //Move backwards to Long Goal and score
-    chassis.moveToPoint(38.25, 20, 1000, {.forwards = false, .maxSpeed = 60}, false);
+    chassis.moveToPoint(42.5, 20, 1000, {.forwards = false, .maxSpeed = 65}, false);
+    outtake(127);
+    pros::delay(100);
     outtakeLong(127);
-    pros::delay(1250);
-    chassis.moveToPoint(37.75, -5, 1000);
-    pros::delay(400);
-    intakeStop();
-
-    //Move towards 3 Block stack and intake
-    chassis.turnToPoint(10, 12.5, 750,  {.direction = lemlib::AngularDirection::CW_CLOCKWISE});
+    pros::delay(900);
+    chassis.setPose(0,0,chassis.getPose().theta);
+    pros::delay(5);
+    chassis.swingToPoint(-31.25, -0.5, DriveSide::RIGHT, 750, {.minSpeed = 20, .earlyExitRange = 4});
+    pros::delay(100);
     setLittleWill(false);
-    chassis.moveToPoint(10, 12.5, 1000, {.maxSpeed = 60});
-    bottomIntake.move(127);
-    pros::delay(825);
+    chassis.moveToPoint(-31.25, -0.5, 1000);
+    intakeStore(127);
+    pros::delay(275);//625
     setLittleWill(true);
-    pros::delay(600);
-    setLittleWill(false);
+    pros::delay(150);
 
     //Move towards Lower Middle Goal and score
-    chassis.moveToPoint(-2.25, 24, 1500, {.maxSpeed =  60});// X -2, y 23
-    pros::delay(350);
-    outtakeLowerMid(100);
+    chassis.moveToPoint(-46.75, 11, 1500, {.maxSpeed =  60});// X -2, y 23
+    pros::delay(10);
+    setLittleWill(false);
+    pros::delay(390);
+    outtakeLowerMid(300);
     pros::delay(1700);
 
     //Move towards 2nd 3 Block stake and intake
-    chassis.moveToPoint(26, 0, 1000, {.forwards = false});
+    chassis.moveToPoint(-13.25, -14, 10000, {.forwards = false});
     intakeStop();
     chassis.turnToHeading(0, 1000);
-    chassis.moveToPoint(26, 26, 1000, {.maxSpeed = 90});
+    chassis.moveToPoint(-13.25, 10, 10000, {.maxSpeed = 90});
     chassis.turnToHeading(-55, 750);
 }
 
@@ -237,25 +239,39 @@ void altleft43Block() {
     //Move to Match Loader and intake
     chassis.moveToPoint(-35.75, -39, 1000, {.maxSpeed = 60});
     intakeStore(127);
-    pros::delay(950);
+    pros::delay(900);
 
     //Move backwards to Long Goal and score
-    chassis.moveToPoint(-34, 20, 1000, {.forwards = false, .maxSpeed = 60}, false);
+    chassis.moveToPoint(-32.5, 20, 1000, {.forwards = false, .maxSpeed = 80}, false);
     outtakeLong(127);
     setLittleWill(false);
-    pros::delay(1250);
-    chassis.moveToPoint(-30, -5, 1000);
-    pros::delay(400);
-    intakeStop();
-    chassis.turnToPoint(0, 26, 500);
-    chassis.moveToPoint(0, 26, 1000);
+    pros::delay(1050);
+    chassis.setPose(0,0,chassis.getPose().theta);
+    pros::delay(5);
+    chassis.swingToPoint(30.25, 3.25, DriveSide::LEFT, 750, {.minSpeed = 20, .earlyExitRange = 4});
+    pros::delay(100);
+    setLittleWill(false);
+    chassis.moveToPoint(30.25, 3.25, 1000, {.maxSpeed = 100});
+    intakeStore(127);
+    pros::delay(200);
+    setLittleWill(true);
+    pros::delay(100);
+    chassis.turnToPoint(63, 40, 1000, {.forwards = false});
+    chassis.moveToPoint(63, 40, 1000, {.forwards = false, .maxSpeed = 80}, false);
+    outtakeMid(127, 950, 350);
+    chassis.moveToPoint(57, 30, 1000);
+    pros::delay(600);
+    setMidDescore(true);
+    pros::delay(100);
+    chassis.moveToPoint(63, 40, 1000, {.forwards = false, .maxSpeed = 80});
+   /* chassis.moveToPoint(0, 26, 1000);
     intakeStore(127);
     pros::delay(650);
     setLittleWill(true);
     pros::delay(50);
     chassis.turnToHeading(-135, 500);
     chassis.moveToPoint(15, 40, 1000, {.forwards = false});
-    outtakeMid(127, 1350, 350);
+    outtakeMid(127, 1350, 350);*/
 }
 
 void altLeft7Block() {

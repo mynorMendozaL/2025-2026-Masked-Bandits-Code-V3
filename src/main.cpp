@@ -156,7 +156,7 @@ void competition_initialize() {
 void autonomous() {
 	autonStarted = true;
 	if (autonSelection == 0) {
-		SAWP();
+		altleft43Block();
 	} else if (autonSelection == 1) {
 		
 	} else if (autonSelection == 2) {
@@ -167,8 +167,8 @@ void autonomous() {
 
 
 void opcontrol() {
-	setWing(true);
-	setLittleWill(true);
+	//setWing(true);
+	//setLittleWill(true);
 	while (true) {
 	//Controller input for driving
 		////////////////////////////////////////////////////////////

@@ -19,11 +19,11 @@ void setMidDescore(bool extended) {
 }
 
 void descoreControl() {
-   /* if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
         setWing(true);
     } else {
         setWing(false);
-    }*/
+    }
     if (master.get_digital(pros::E_CONTROLLER_DIGITAL_Y)) {
         setMidDescore(true);
     } else {

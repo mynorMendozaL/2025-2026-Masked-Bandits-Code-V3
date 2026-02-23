@@ -4,7 +4,7 @@
 // Intake Motors/Sensors
 pros::Motor bottomIntake(11, pros::MotorGears::blue);    // Port 19, 11W Blue Motor
 pros::Motor middleIntake(19, pros::MotorGears::green);  // Port 17 (reversed), 5.5W Green Motor
-pros::Motor indexer(-14, pros::MotorGears::green);        // Port 20, 5.5W Green Motor
+pros::Motor indexer(14, pros::MotorGears::green);        // Port 20, 5.5W Green Motor
 
 // Pneumatics used in intake system
 pros::adi::DigitalOut hoodPiston('A', false);      // Pneumatic piston on ADI port B
@@ -81,10 +81,10 @@ void outtakeUpperMid(int voltage) {
         // Forward phase: bottom/middle forward to feed, indexer reverse to prevent double-feed
         didReverse = true;
         bottomIntake.move(voltage);
-        //middleIntake.move(voltage);
-        //indexer.move(-voltage);
-        middleIntake.move_velocity(150);
-        indexer.move_velocity(-20);  // Keeps indexer reversed to hold back additional blocks
+        middleIntake.move(voltage);
+        indexer.move(-voltage);
+        //middleIntake.move_velocity(150);
+        //indexer.move_velocity(-55);  // Keeps indexer reversed to hold back additional blocks//35
     }
 
     tick++; // Increment tick counter for phase tracking
@@ -113,11 +113,15 @@ void outtakeMid(int voltage, int forwardDuration, int reverseDuration) {
 void outtakeLowerMid(int voltage) {
     setHoodPiston(false);
     setFloatingPiston(true);
-    //bottomIntake.move_velocity(-130);
+    if (voltage <= 127) {
     bottomIntake.move(-voltage);
     middleIntake.move(-voltage);
     indexer.move(-voltage);
-    //indexer.move_velocity(-110);
+    } else {
+    indexer.move_velocity(-110);
+    middleIntake.move(-voltage);
+    bottomIntake.move_velocity(-voltage);
+    }
 }
 
 void outtake(int voltage) {
